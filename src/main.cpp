@@ -37,7 +37,7 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
-  // --- Power up display FIRST ---
+  //Power up display FIRST ---
   pinMode(VEXT_CTRL, OUTPUT);
   digitalWrite(VEXT_CTRL, HIGH);
   delay(100);
@@ -53,7 +53,7 @@ void setup() {
   tft.setTextColor(ST77XX_WHITE);
   tft.println(DEVICE_NAME);
 
-  // --- Radio ---
+  //Radio ---
   SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_NSS);
   int state = radio.begin(915.0);
   if (state != RADIOLIB_ERR_NONE) {
@@ -74,15 +74,12 @@ void setup() {
 void loop() {
   //Check for incoming packet
   if (receivedFlag) {
+    tft.fillRect(5, 40, 150, 30, ST77XX_BLACK);
     receivedFlag = false;
     String str;
     int state = radio.readData(str);
     if (state == RADIOLIB_ERR_NONE) {
       lastMsg = str;
-      Serial.print("Received: ");
-      Serial.println(str);
-      Serial.print("RSSI: ");
-      Serial.println(radio.getRSSI());
     }
     radio.startReceive(); //go back to listening
   }
@@ -90,13 +87,14 @@ void loop() {
   //Periodically transmit
   if (millis() - lastSend > sendInterval) {
     lastSend = millis();
-    Serial.println("Transmitting...");
     radio.transmit("Hello from " + String(DEVICE_NAME));
+    receivedFlag = false; //clear flag to avoid reading our own message
     radio.startReceive(); //resume listening
   }
 
+
   //Display Update
-  tft.fillRect(5, 40, 150, 30, ST77XX_BLACK);
+  //tft.fillRect(5, 40, 150, 30, ST77XX_BLACK);
   tft.setCursor(5, 40);
   tft.setTextColor(ST77XX_WHITE);
   tft.println("Last RX:");
