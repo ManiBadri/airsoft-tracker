@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"name": "airsoft-tracker",
+			"path": "C:/Users/money/OneDrive/Documentos/PlatformIO/Projects/airsoft-tracker"
+		}
+	],
+	"settings": {
+		"clangd.arguments": [
+			"--compile-commands-dir=${workspaceFolder}",
+			"--query-driver=C:/Users/money/.platformio/packages/toolchain-xtensa-esp32/bin/*"
+		]
+	}
+}
