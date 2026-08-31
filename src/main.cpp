@@ -13,6 +13,10 @@
 #define LORA_BUSY  13
 #define LORA_DIO1  14
 
+//reading battery voltage
+#define VBAT_READ  1   //ADC1_CH0, reads the battery voltage
+#define ADC_CTRL   37  //Enables the voltage-divider circuit before reading
+
 
 #define GNSS_RX 33   //MCU receives GPS data here
 #define GNSS_TX 34   //MCU sends commands to GPS here (rarely used)
@@ -31,7 +35,7 @@ HardwareSerial gpsSerial(1);
 TinyGPSPlus gps;
 
 //each board name
-#define DEVICE_NAME "NodeB"
+#define DEVICE_NAME "NodeA"
 
 volatile bool receivedFlag = false;
 void onReceive() { receivedFlag = true; }
@@ -83,8 +87,8 @@ void setup() {
   tft.println("Radio OK");
 }
 
-void loop() {
 
+void loop() {
 
 
   down_time = (millis() - lastReceivedMillis) / 1000;
@@ -113,13 +117,11 @@ void loop() {
     radio.startReceive(); //resume listening
   }
 
-  //while(gpsSerial.available() > 0) {
-  //  gps.encode(gpsSerial.read());
-  //}
 
   while (gpsSerial.available() > 0) {
     gps.encode(gpsSerial.read());
   }
+
   //SAT DEBUG AND INFO
   static unsigned long lastSatDisplay = 0;
   if (millis() - lastSatDisplay > 1000) {
@@ -153,6 +155,18 @@ void loop() {
     //gives you an at-a-glance status without reading the text.
     tft.setTextColor(hasFix ? ST77XX_GREEN : ST77XX_RED);
     tft.println(satStr);
+
+    //print long and lat to serial
+    Serial.print(F("Location: ")); 
+    if (gps.location.isValid()){
+      Serial.print(gps.location.lat(), 6);
+      Serial.print(F(","));
+      Serial.print(gps.location.lng(), 6);
+    }
+    else{
+      Serial.print(F("INVALID"));
+    }
+
   }
 
 
