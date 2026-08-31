@@ -5,6 +5,10 @@
 #include <RadioLib.h>
 #include "TinyGPSPlus.h"
 
+#include "iostream"
+#include "sstream"
+#include "string"
+
 #define LORA_NSS   8
 #define LORA_SCK   9
 #define LORA_MOSI  10
@@ -87,15 +91,77 @@ void setup() {
   tft.println("Radio OK");
 }
 
+//other player infos
+struct Player {
+  String name;
+  double lat;
+  double lng;
+};
+
+void PlayerID() {
+}
+
+Player handleReceivedData(const String& str) {
+  Player player;
+  player.name = "Unknown";
+  player.lat = 0.0;
+  player.lng = 0.0;
+
+  int firstColon = str.indexOf(':');
+  if (firstColon < 0) {
+    return player;
+  }
+
+  player.name = str.substring(0, firstColon);
+
+  int secondColon = str.indexOf(':', firstColon + 1);
+  String latStr = (secondColon > firstColon)
+      ? str.substring(firstColon + 1, secondColon)
+      : str.substring(firstColon + 1);
+  player.lat = latStr.toFloat();
+
+  if (secondColon > firstColon) {
+    player.lng = str.substring(secondColon + 1).toFloat();
+  }
+
+  return player;
+}
+
+void arrowDraw(double myLat, double otherLat) {
+  const int16_t x = 90;
+  const int16_t y = 40;
+  const uint16_t w = 70;
+  const uint16_t h = 16;
+
+  tft.fillRect(x, y, w, h, ST77XX_BLACK);
+  tft.setCursor(x, y);
+  tft.setTextColor(ST77XX_WHITE);
+
+  if (!gps.location.isValid()) {
+    tft.print("No fix");
+    return;
+  }
+
+  double latDiff = otherLat - myLat;
+  if (latDiff > 0.0005) {
+    tft.print("N");
+  } else if (latDiff < -0.0005) {
+    tft.print("S");
+  } else {
+    tft.print("Same");
+  }
+}
+
 
 void loop() {
-
 
   down_time = (millis() - lastReceivedMillis) / 1000;
   tft.setCursor(5, 70);
   tft.fillRect(5, 70, 150, 30, ST77XX_BLACK);
   tft.setTextColor(ST77XX_RED);
   tft.println(down_time);
+
+
 
   if (receivedFlag) {
     tft.fillRect(5, 40, 150, 30, ST77XX_BLACK);
@@ -105,17 +171,18 @@ void loop() {
     if (state == RADIOLIB_ERR_NONE) {
       lastMsg = str;
       lastReceivedMillis = millis();
+
+      if (gps.location.isValid()) {
+        Player player = handleReceivedData(str);
+        arrowDraw(gps.location.lat(), player.lat);
+      } else {
+        arrowDraw(0.0, 0.0);
+      }
     }
     radio.startReceive(); //go back to listening
   }
 
-  //Periodically transmit
-  if (millis() - lastSend > sendInterval) {
-    lastSend = millis();
-    radio.transmit("Hello from " + String(DEVICE_NAME));
-    receivedFlag = false; //clear flag to avoid reading our own message
-    radio.startReceive(); //resume listening
-  }
+
 
 
   while (gpsSerial.available() > 0) {
@@ -160,13 +227,28 @@ void loop() {
     Serial.print(F("Location: ")); 
     if (gps.location.isValid()){
       Serial.print(gps.location.lat(), 6);
+      long myLat = gps.location.lat();
       Serial.print(F(","));
       Serial.print(gps.location.lng(), 6);
+      long myLng = gps.location.lng();
     }
     else{
       Serial.print(F("INVALID"));
     }
 
+  }
+
+
+  //Periodically transmit
+  if (millis() - lastSend > sendInterval) {
+    lastSend = millis();
+    //radio.transmit("Hello from " + String(DEVICE_NAME));
+    
+    //TEST
+    radio.transmit(String(gps.location.lat(), 6) + F(":") + String(DEVICE_NAME));
+    
+    receivedFlag = false; //clear flag to avoid reading our own message
+    radio.startReceive(); //resume listening
   }
 
 
