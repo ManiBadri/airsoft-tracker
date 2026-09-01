@@ -39,7 +39,7 @@ HardwareSerial gpsSerial(1);
 TinyGPSPlus gps;
 
 //each board name
-#define DEVICE_NAME "NodeA"
+#define DEVICE_NAME "NodeB"
 
 volatile bool receivedFlag = false;
 void onReceive() { receivedFlag = true; }
@@ -152,15 +152,12 @@ void arrowDraw(double myLat, double otherLat) {
   }
 }
 
-
-void loop() {
-
+void loop(){
   down_time = (millis() - lastReceivedMillis) / 1000;
   tft.setCursor(5, 70);
   tft.fillRect(5, 70, 150, 30, ST77XX_BLACK);
   tft.setTextColor(ST77XX_RED);
   tft.println(down_time);
-
 
 
   if (receivedFlag) {
@@ -174,6 +171,7 @@ void loop() {
 
       if (gps.location.isValid()) {
         Player player = handleReceivedData(str);
+        Serial.print("Received from: " + player.name + " | ");
         arrowDraw(gps.location.lat(), player.lat);
       } else {
         arrowDraw(0.0, 0.0);
@@ -181,9 +179,6 @@ void loop() {
     }
     radio.startReceive(); //go back to listening
   }
-
-
-
 
   while (gpsSerial.available() > 0) {
     gps.encode(gpsSerial.read());
@@ -223,21 +218,7 @@ void loop() {
     tft.setTextColor(hasFix ? ST77XX_GREEN : ST77XX_RED);
     tft.println(satStr);
 
-    //print long and lat to serial
-    Serial.print(F("Location: ")); 
-    if (gps.location.isValid()){
-      Serial.print(gps.location.lat(), 6);
-      long myLat = gps.location.lat();
-      Serial.print(F(","));
-      Serial.print(gps.location.lng(), 6);
-      long myLng = gps.location.lng();
-    }
-    else{
-      Serial.print(F("INVALID"));
-    }
-
   }
-
 
   //Periodically transmit
   if (millis() - lastSend > sendInterval) {
@@ -245,12 +226,11 @@ void loop() {
     //radio.transmit("Hello from " + String(DEVICE_NAME));
     
     //TEST
-    radio.transmit(String(gps.location.lat(), 6) + F(":") + String(DEVICE_NAME));
+    radio.transmit(String(DEVICE_NAME) + F(":") + String(gps.location.lat(), 6));
     
     receivedFlag = false; //clear flag to avoid reading our own message
     radio.startReceive(); //resume listening
   }
-
 
   //Display Update
   //tft.fillRect(5, 40, 150, 30, ST77XX_BLACK);
