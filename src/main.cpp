@@ -127,7 +127,7 @@ Player handleReceivedData(const String& str) {
   return player;
 }
 
-void arrowDraw(double myLat, double otherLat) {
+void arrowDraw(double myLat, double otherLat, double myLng, double otherLng, bool error) {
   const int16_t x = 90;
   const int16_t y = 40;
   const uint16_t w = 70;
@@ -142,13 +142,33 @@ void arrowDraw(double myLat, double otherLat) {
     return;
   }
 
+  if(error) {
+    tft.print("Not Found");
+    return;
+  }
+
   double latDiff = otherLat - myLat;
+  double lngDiff = otherLng - myLng;
   if (latDiff > 0.0005) {
-    tft.print("N");
+    if(lngDiff > 0.0005) {
+      tft.print("NE");
+    } else {
+      tft.print("NW");
+    }
   } else if (latDiff < -0.0005) {
-    tft.print("S");
+    if(lngDiff > 0.0005) {
+      tft.print("SE");
+    } else {
+      tft.print("SW");
+    }
   } else {
+    if(lngDiff > 0.0005) {
+      tft.print("E");
+    } else if (lngDiff < -0.0005) {
+      tft.print("W");
+    } else {
     tft.print("Same");
+    }
   }
 }
 
@@ -171,10 +191,10 @@ void loop(){
 
       if (gps.location.isValid()) {
         Player player = handleReceivedData(str);
-        Serial.print("Received from: " + player.name + " | ");
-        arrowDraw(gps.location.lat(), player.lat);
+        Serial.print("Received from: " + player.name + " | " + String(player.lat, 6) + ", " + String(player.lng, 6));
+        arrowDraw(gps.location.lat(), player.lat, gps.location.lng(), player.lng, false);
       } else {
-        arrowDraw(0.0, 0.0);
+        arrowDraw(0.0, 0.0, 0.0, 0.0, true);
       }
     }
     radio.startReceive(); //go back to listening
@@ -226,7 +246,7 @@ void loop(){
     //radio.transmit("Hello from " + String(DEVICE_NAME));
     
     //TEST
-    radio.transmit(String(DEVICE_NAME) + F(":") + String(gps.location.lat(), 6));
+    radio.transmit(String(DEVICE_NAME) + F(":") + String(gps.location.lat(), 7) + F(":") + String(gps.location.lng(), 7));
     
     receivedFlag = false; //clear flag to avoid reading our own message
     radio.startReceive(); //resume listening
