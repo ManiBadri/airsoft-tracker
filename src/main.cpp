@@ -39,7 +39,7 @@ HardwareSerial gpsSerial(1);
 TinyGPSPlus gps;
 
 //each board name
-#define DEVICE_NAME "NodeB"
+#define DEVICE_NAME "NodeA"
 
 volatile bool receivedFlag = false;
 void onReceive() { receivedFlag = true; }
@@ -149,22 +149,22 @@ void arrowDraw(double myLat, double otherLat, double myLng, double otherLng, boo
 
   double latDiff = otherLat - myLat;
   double lngDiff = otherLng - myLng;
-  if (latDiff > 0.0005) {
-    if(lngDiff > 0.0005) {
+  if (latDiff > 0.000005) { //was 0.0005
+    if(lngDiff > 0.000005) {
       tft.print("NE");
     } else {
       tft.print("NW");
     }
-  } else if (latDiff < -0.0005) {
-    if(lngDiff > 0.0005) {
+  } else if (latDiff < -0.000005) {
+    if(lngDiff > 0.000005) {
       tft.print("SE");
     } else {
       tft.print("SW");
     }
   } else {
-    if(lngDiff > 0.0005) {
+    if(lngDiff > 0.000005) {
       tft.print("E");
-    } else if (lngDiff < -0.0005) {
+    } else if (lngDiff < -0.000005) {
       tft.print("W");
     } else {
     tft.print("Same");
