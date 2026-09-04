@@ -9,6 +9,10 @@
 #include "sstream"
 #include "string"
 
+
+constexpr uint8_t TFT_MOSI  = 42;
+constexpr uint8_t TFT_SCLK  = 41;
+
 #define LORA_NSS   8
 #define LORA_SCK   9
 #define LORA_MOSI  10
