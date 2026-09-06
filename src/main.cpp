@@ -4,6 +4,8 @@
 #include <SPI.h>
 #include <RadioLib.h>
 #include "TinyGPSPlus.h"
+#include <Wire.h>
+
 
 #include "iostream"
 #include "sstream"
@@ -12,6 +14,11 @@
 
 constexpr uint8_t TFT_MOSI  = 42;
 constexpr uint8_t TFT_SCLK  = 41;
+
+
+#define COMPASS_SDA 17
+#define COMPASS_SCL 18
+
 
 #define LORA_NSS   8
 #define LORA_SCK   9
