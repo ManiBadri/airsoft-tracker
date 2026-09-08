@@ -68,7 +68,7 @@ String lastMsg = "waiting...";
 void qmcInit() {
   Wire.beginTransmission(QMC5883P_ADDR);
   Wire.write(0x0B);  // config register
-  Wire.write(0x08);  // set mode continuous, output data rate, range — matches datasheet defaults
+  Wire.write(0x08);  // set mode continuous
   Wire.endTransmission();
 
   Wire.beginTransmission(QMC5883P_ADDR);
@@ -215,14 +215,14 @@ void arrowDraw(double myLat, double otherLat, double myLng, double otherLng, boo
 
 
 
-// Reads raw X/Y/Z and returns a heading in degrees
+//Reads raw X/Y/Z and returns a heading in degrees
 float qmcReadHeading() {
   Wire.beginTransmission(QMC5883P_ADDR);
-  Wire.write(0x01); // data output registers start here for QMC5883P
+  Wire.write(0x01); //data output registers
   Wire.endTransmission();
 
   Wire.requestFrom(QMC5883P_ADDR, 6);
-  if (Wire.available() < 6) return -1; // not enough data, skip this read
+  if (Wire.available() < 6) return -1; //not enough data, skip this read
 
   int16_t x = Wire.read() | (Wire.read() << 8);
   int16_t y = Wire.read() | (Wire.read() << 8);
