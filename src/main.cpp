@@ -78,7 +78,7 @@ void qmcInit() {
 
   Wire.beginTransmission(QMC5883P_ADDR);
   Wire.write(0x0A);
-  Wire.write(0xC3); // continuous mode, ODR = 10Hz
+  Wire.write(0xC3); //continuous mode, ODR = 10Hz
   Wire.endTransmission();
 }
 
@@ -234,6 +234,31 @@ float qmcReadHeading() {
 }
 
 
+//just NSEW on X axis
+char qmcReadHeadingCardinal(){
+  Wire.beginTransmission(QMC5883P_ADDR);
+  Wire.write(0x01);
+  Wire.endTransmission();
+
+  Wire.requestFrom(QMC5883P_ADDR, 6);
+  if (Wire.available() < 6) return 'Z';
+
+  int16_t x = Wire.read() | (Wire.read() << 8);
+  int16_t y = Wire.read() | (Wire.read() << 8);
+  int16_t z = Wire.read() | (Wire.read() << 8);
+
+  float heading = atan2((float)y, (float)x) * 180.0 / PI;
+  if (heading < 0) heading += 360;
+
+  if (heading >= 315 || heading < 45)  return 'N';
+  if (heading >= 45  && heading < 135) return 'E';
+  if (heading >= 135 && heading < 225) return 'S';
+  if (heading >= 225 && heading < 315) return 'W';
+
+  return 'Z'; 
+}
+
+
 
 
 
@@ -321,9 +346,9 @@ void loop(){
 
   static unsigned long lastCompassCheck = 0;
   if (millis() - lastCompassCheck > 200) { 
-    float heading = qmcReadHeading();
+    char heading = qmcReadHeadingCardinal();
 
-    if (heading < 0) {
+    if (heading == 'Z') {
       Serial.println("Read failed, no data available");
     } else {
       Serial.print("Heading: ");
