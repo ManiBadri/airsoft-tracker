@@ -235,13 +235,13 @@ float qmcReadHeading() {
 
 
 //just NSEW on X axis
-char qmcReadHeadingCardinal(){
+float qmcReadHeadingCardinal(){
   Wire.beginTransmission(QMC5883P_ADDR);
   Wire.write(0x01);
   Wire.endTransmission();
 
   Wire.requestFrom(QMC5883P_ADDR, 6);
-  if (Wire.available() < 6) return 'Z';
+  if (Wire.available() < 6) return -1;
 
   int16_t x = Wire.read() | (Wire.read() << 8);
   int16_t y = Wire.read() | (Wire.read() << 8);
@@ -250,12 +250,12 @@ char qmcReadHeadingCardinal(){
   float heading = atan2((float)y, (float)x) * 180.0 / PI;
   if (heading < 0) heading += 360;
 
-  if (heading >= 315 || heading < 45)  return 'N';
-  if (heading >= 45  && heading < 135) return 'E';
-  if (heading >= 135 && heading < 225) return 'S';
-  if (heading >= 225 && heading < 315) return 'W';
+  //if (heading >= 315 || heading < 45)  return 'N';
+  //if (heading >= 45  && heading < 135) return 'E';
+  //if (heading >= 135 && heading < 225) return 'S';
+  //if (heading >= 225 && heading < 315) return 'W';
 
-  return 'Z'; 
+  return heading; 
 }
 
 
@@ -311,8 +311,6 @@ void loop(){
       satStr += " ...";
     }
 
-    //Same measure-then-right-align approach as before, so it stays
-    //pinned to the right edge regardless of digit count.
     int16_t x1, y1;
     uint16_t textW, textH;
     tft.setTextSize(1);
@@ -323,8 +321,8 @@ void loop(){
     tft.fillRect(satX - 2, satY, textW + 4, textH + 2, ST77XX_BLACK);
 
     tft.setCursor(satX, satY);
-    //Color-code it: red while searching, green once we have a fix —
-    //gives you an at-a-glance status without reading the text.
+
+
     tft.setTextColor(hasFix ? ST77XX_GREEN : ST77XX_RED);
     tft.println(satStr);
 
@@ -333,7 +331,6 @@ void loop(){
   //Periodically transmit
   if (millis() - lastSend > sendInterval) {
     lastSend = millis();
-    //radio.transmit("Hello from " + String(DEVICE_NAME));
     
     //TEST
     radio.transmit(String(DEVICE_NAME) + F(":") + String(gps.location.lat(), 7) + F(":") + String(gps.location.lng(), 7));
@@ -343,17 +340,16 @@ void loop(){
   }
 
 
-
   static unsigned long lastCompassCheck = 0;
   if (millis() - lastCompassCheck > 200) { 
-    char heading = qmcReadHeadingCardinal();
+    float heading = qmcReadHeadingCardinal();
 
-    if (heading == 'Z') {
+    if (heading == -1) {
       Serial.println("Read failed, no data available");
     } else {
       Serial.print("Heading: ");
       Serial.println(heading);
-    }
+    } 
 
   }
 
