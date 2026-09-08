@@ -5,15 +5,13 @@
 #include <RadioLib.h>
 #include "TinyGPSPlus.h"
 #include <Wire.h>
+#include <QMC5883L.h>
 
+#define QMC5883P_ADDR 0x2C 
 
 #include "iostream"
 #include "sstream"
 #include "string"
-
-
-constexpr uint8_t TFT_MOSI  = 42;
-constexpr uint8_t TFT_SCLK  = 41;
 
 
 #define COMPASS_SDA 17
@@ -49,6 +47,10 @@ SX1262 radio = new Module(LORA_NSS, LORA_DIO1, LORA_RST, LORA_BUSY);
 HardwareSerial gpsSerial(1);
 TinyGPSPlus gps;
 
+//compass object
+QMC5883L compass;
+
+
 //each board name
 #define DEVICE_NAME "NodeA"
 
@@ -60,6 +62,27 @@ unsigned long lastReceivedMillis = 0;
 unsigned long down_time = 0;
 const unsigned long sendInterval = 5000; //time between each transmission (in milliseconds)
 String lastMsg = "waiting...";
+
+
+
+void qmcInit() {
+  Wire.beginTransmission(QMC5883P_ADDR);
+  Wire.write(0x0B);  // config register
+  Wire.write(0x08);  // set mode continuous, output data rate, range — matches datasheet defaults
+  Wire.endTransmission();
+
+  Wire.beginTransmission(QMC5883P_ADDR);
+  Wire.write(0x29);
+  Wire.write(0x06);
+  Wire.endTransmission();
+
+  Wire.beginTransmission(QMC5883P_ADDR);
+  Wire.write(0x0A);
+  Wire.write(0xC3); // continuous mode, ODR = 10Hz
+  Wire.endTransmission();
+}
+
+
 
 void setup() {
   Serial.begin(115200);
@@ -74,6 +97,12 @@ void setup() {
   delay(100);
 
   gpsSerial.begin(115200, SERIAL_8N1, GNSS_RX, GNSS_TX);
+
+  Wire.begin(COMPASS_SDA, COMPASS_SCL);
+  qmcInit();
+
+  Serial.println("QMC5883P initialized");
+
 
   tft.initR(INITR_MINI160x80_PLUGIN);
   tft.invertDisplay(false);
@@ -183,6 +212,31 @@ void arrowDraw(double myLat, double otherLat, double myLng, double otherLng, boo
   }
 }
 
+
+
+
+// Reads raw X/Y/Z and returns a heading in degrees
+float qmcReadHeading() {
+  Wire.beginTransmission(QMC5883P_ADDR);
+  Wire.write(0x01); // data output registers start here for QMC5883P
+  Wire.endTransmission();
+
+  Wire.requestFrom(QMC5883P_ADDR, 6);
+  if (Wire.available() < 6) return -1; // not enough data, skip this read
+
+  int16_t x = Wire.read() | (Wire.read() << 8);
+  int16_t y = Wire.read() | (Wire.read() << 8);
+  int16_t z = Wire.read() | (Wire.read() << 8);
+
+  float heading = atan2((float)y, (float)x) * 180.0 / PI;
+  if (heading < 0) heading += 360;
+  return heading;
+}
+
+
+
+
+
 void loop(){
   down_time = (millis() - lastReceivedMillis) / 1000;
   tft.setCursor(5, 70);
@@ -263,6 +317,22 @@ void loop(){
     radio.startReceive(); //resume listening
   }
 
+
+
+  static unsigned long lastCompassCheck = 0;
+  if (millis() - lastCompassCheck > 200) { 
+    float heading = qmcReadHeading();
+
+    if (heading < 0) {
+      Serial.println("Read failed, no data available");
+    } else {
+      Serial.print("Heading: ");
+      Serial.println(heading);
+    }
+
+  }
+
+
   //Display Update
   //tft.fillRect(5, 40, 150, 30, ST77XX_BLACK);
   tft.setCursor(5, 40);
@@ -272,3 +342,4 @@ void loop(){
   tft.setTextColor(ST77XX_RED);
   tft.println(lastMsg);
 }
+
