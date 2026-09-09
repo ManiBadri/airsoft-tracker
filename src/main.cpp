@@ -52,7 +52,7 @@ QMC5883L compass;
 
 
 //each board name
-#define DEVICE_NAME "NodeA"
+#define DEVICE_NAME "NodeB"
 
 volatile bool receivedFlag = false;
 void onReceive() { receivedFlag = true; }
@@ -62,6 +62,9 @@ unsigned long lastReceivedMillis = 0;
 unsigned long down_time = 0;
 const unsigned long sendInterval = 5000; //time between each transmission (in milliseconds)
 String lastMsg = "waiting...";
+const unsigned long calibration_time = 30000;
+
+bool calibrateCompass();
 
 
 
@@ -103,7 +106,16 @@ void setup() {
 
   Serial.println("QMC5883P initialized");
 
+  Serial.println("Calibrating compass for 30 seconds");
+  unsigned long calibrationStart = millis();
+  while (millis() - calibrationStart < calibration_time) {
+    calibrateCompass();
+    delay(100);
+  }
+  Serial.println("Compass calibration complete");
 
+
+  Serial.println("Initializing TFT");
   tft.initR(INITR_MINI160x80_PLUGIN);
   tft.invertDisplay(false);
   tft.setRotation(1);
@@ -114,9 +126,12 @@ void setup() {
   tft.println(DEVICE_NAME);
 
   //Radio ---
+  Serial.println("Initializing radio");
   SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_NSS);
   int state = radio.begin(915.0);
   if (state != RADIOLIB_ERR_NONE) {
+    Serial.print("Radio init failed, code: ");
+    Serial.println(state);
     tft.setCursor(5, 20);
     tft.setTextColor(ST77XX_RED);
     tft.println("Radio FAIL");
@@ -234,6 +249,38 @@ float qmcReadHeading() {
 }
 
 
+
+
+
+
+int16_t xMin = 32767, xMax = -32768;
+int16_t yMin = 32767, yMax = -32768;
+
+int16_t x_offset = 0, y_offset = 0;
+
+bool calibrateCompass(){
+  Wire.beginTransmission(QMC5883P_ADDR);
+  Wire.write(0x01);
+  Wire.endTransmission();
+  Wire.requestFrom(QMC5883P_ADDR, 6);
+  if (Wire.available() < 6) return false;
+
+  int16_t x = Wire.read() | (Wire.read() << 8);
+  int16_t y = Wire.read() | (Wire.read() << 8);
+  Wire.read(); Wire.read(); //discard Z
+
+  if (x < xMin) xMin = x;
+  if (x > xMax) xMax = x;
+  if (y < yMin) yMin = y;
+  if (y > yMax) yMax = y;
+
+  Serial.print("xMin: "); Serial.print(xMin);
+  Serial.print(" xMax: "); Serial.print(xMax);
+  Serial.print(" yMin: "); Serial.print(yMin);
+  Serial.print(" yMax: "); Serial.println(yMax);
+  return true;
+}
+
 //just NSEW on X axis
 float qmcReadHeadingCardinal(){
   Wire.beginTransmission(QMC5883P_ADDR);
@@ -247,7 +294,11 @@ float qmcReadHeadingCardinal(){
   int16_t y = Wire.read() | (Wire.read() << 8);
   int16_t z = Wire.read() | (Wire.read() << 8);
 
-  float heading = atan2((float)y, (float)x) * 180.0 / PI;
+  x_offset = (xMax + xMin) / 2;
+  y_offset = (yMax + yMin) / 2;
+
+
+  float heading = atan2((float)y - y_offset, (float)x - x_offset) * 180.0 / PI;
   if (heading < 0) heading += 360;
 
   //if (heading >= 315 || heading < 45)  return 'N';
@@ -260,12 +311,13 @@ float qmcReadHeadingCardinal(){
 
 
 
-
-
 void loop(){
+  
   down_time = (millis() - lastReceivedMillis) / 1000;
+
+  
   tft.setCursor(5, 70);
-  tft.fillRect(5, 70, 150, 30, ST77XX_BLACK);
+  tft.fillRect(5, 70, 45, 10, ST77XX_BLACK);
   tft.setTextColor(ST77XX_RED);
   tft.println(down_time);
 
@@ -342,6 +394,7 @@ void loop(){
 
   static unsigned long lastCompassCheck = 0;
   if (millis() - lastCompassCheck > 200) { 
+    lastCompassCheck = millis();
     float heading = qmcReadHeadingCardinal();
 
     if (heading == -1) {
@@ -349,6 +402,19 @@ void loop(){
     } else {
       Serial.print("Heading: ");
       Serial.println(heading);
+
+      String headingText = "H: " + String(heading, 1);
+      int16_t headingX = 0;
+      int16_t headingY = 0;
+      uint16_t headingWidth = 0;
+      uint16_t headingHeight = 0;
+      tft.setTextSize(1);
+      tft.getTextBounds(headingText, 0, 70, &headingX, &headingY,
+                        &headingWidth, &headingHeight);
+      tft.fillRect(90, 70, 70, 10, ST77XX_BLACK);
+      tft.setCursor(160 - headingWidth - 2, 70);
+      tft.setTextColor(ST77XX_WHITE);
+      tft.print(headingText);
     } 
 
   }
