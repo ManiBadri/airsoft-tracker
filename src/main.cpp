@@ -51,8 +51,13 @@ TinyGPSPlus gps;
 QMC5883L compass;
 
 
+//screen meassurements
+int SCREEN_WIDTH = 160;
+int SCREEN_HEIGHT = 80;
+
+
 //each board name
-#define DEVICE_NAME "NodeB"
+#define DEVICE_NAME "NodeA"
 
 volatile bool receivedFlag = false;
 void onReceive() { receivedFlag = true; }
@@ -310,6 +315,34 @@ float qmcReadHeadingCardinal(){
 }
 
 
+int16_t radar_size = 6;
+int16_t arrowx = SCREEN_WIDTH / 2;
+int16_t arrowy = SCREEN_HEIGHT - radar_size - 1;
+
+void northPointer() {
+
+  int16_t x3 = 3;
+  int16_t y3 = 5;
+
+
+  //start x and y, end x and y, color
+  tft.drawLine(arrowx, arrowy, arrowx + x3, arrowy - y3, ST77XX_WHITE);
+
+}
+
+
+void radar_circle(){ //circle size of 4 right now
+  tft.setTextColor(ST77XX_WHITE);
+  tft.drawCircle(arrowx, arrowy, radar_size, ST77XX_WHITE);
+
+  northPointer();
+}
+
+
+
+
+
+
 
 void loop(){
   
@@ -418,6 +451,9 @@ void loop(){
     } 
 
   }
+  
+
+  radar_circle();
 
 
   //Display Update
