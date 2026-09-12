@@ -319,10 +319,13 @@ int16_t radar_size = 6;
 int16_t arrowx = SCREEN_WIDTH / 2;
 int16_t arrowy = SCREEN_HEIGHT - radar_size - 1;
 
-void northPointer() {
+void northPointer(float heading) {
+  if (heading == -1) return;
 
-  int16_t x3 = 3;
-  int16_t y3 = 5;
+  // heading is in degrees, but the trigonometric functions use radians.
+  float angle = heading * PI / 180.0;
+  int16_t x3 = radar_size * sin(angle);
+  int16_t y3 = radar_size * cos(angle);
 
 
   //start x and y, end x and y, color
@@ -331,11 +334,14 @@ void northPointer() {
 }
 
 
-void radar_circle(){ //circle size of 4 right now
+void radar_circle(float heading){ //circle size of 4 right now
+  // Remove the previous pointer before drawing it at its new angle.
+  tft.fillRect(arrowx - radar_size - 1, arrowy - radar_size - 1,
+               radar_size * 2 + 3, radar_size * 2 + 3, ST77XX_BLACK);
   tft.setTextColor(ST77XX_WHITE);
   tft.drawCircle(arrowx, arrowy, radar_size, ST77XX_WHITE);
 
-  northPointer();
+  northPointer(heading);
 }
 
 
@@ -429,6 +435,8 @@ void loop(){
   if (millis() - lastCompassCheck > 200) { 
     lastCompassCheck = millis();
     float heading = qmcReadHeadingCardinal();
+    
+    radar_circle(heading);
 
     if (heading == -1) {
       Serial.println("Read failed, no data available");
@@ -452,8 +460,6 @@ void loop(){
 
   }
   
-
-  radar_circle();
 
 
   //Display Update
