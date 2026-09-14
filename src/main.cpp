@@ -6,6 +6,10 @@
 #include "TinyGPSPlus.h"
 #include <Wire.h>
 #include <QMC5883L.h>
+#include "mbedtls/aes.h"
+
+#include "crypto.h"
+
 
 #define QMC5883P_ADDR 0x2C 
 
@@ -57,7 +61,7 @@ int SCREEN_HEIGHT = 80;
 
 
 //each board name
-#define DEVICE_NAME "NodeA"
+#define DEVICE_NAME "NodeB"
 
 volatile bool receivedFlag = false;
 void onReceive() { receivedFlag = true; }
@@ -187,6 +191,42 @@ Player handleReceivedData(const String& str) {
   return player;
 }
 
+char hexDigit(uint8_t value) {
+  return value < 10 ? ('0' + value) : ('A' + value - 10);
+}
+
+String encodeHex(const uint8_t* data, size_t len) {
+  String encoded;
+  encoded.reserve(len * 2);
+  for (size_t i = 0; i < len; i++) {
+    encoded += hexDigit(data[i] >> 4);
+    encoded += hexDigit(data[i] & 0x0F);
+  }
+  return encoded;
+}
+
+int8_t hexValue(char value) {
+  if (value >= '0' && value <= '9') return value - '0';
+  if (value >= 'A' && value <= 'F') return value - 'A' + 10;
+  if (value >= 'a' && value <= 'f') return value - 'a' + 10;
+  return -1;
+}
+
+bool decodeHex(const String& encoded, uint8_t* data, size_t capacity, size_t& len) {
+  if ((encoded.length() % 2) != 0 || encoded.length() / 2 > capacity) {
+    return false;
+  }
+
+  len = encoded.length() / 2;
+  for (size_t i = 0; i < len; i++) {
+    int8_t high = hexValue(encoded[i * 2]);
+    int8_t low = hexValue(encoded[i * 2 + 1]);
+    if (high < 0 || low < 0) return false;
+    data[i] = (high << 4) | low;
+  }
+  return true;
+}
+
 void arrowDraw(double myLat, double otherLat, double myLng, double otherLng, bool error) {
   const int16_t x = 90;
   const int16_t y = 40;
@@ -231,8 +271,6 @@ void arrowDraw(double myLat, double otherLat, double myLng, double otherLng, boo
     }
   }
 }
-
-
 
 
 //Reads raw X/Y/Z and returns a heading in degrees
@@ -364,18 +402,34 @@ void loop(){
   if (receivedFlag) {
     tft.fillRect(5, 40, 150, 30, ST77XX_BLACK);
     receivedFlag = false;
-    String str;
-    int state = radio.readData(str);
+    String packet;
+    int state = radio.readData(packet);
     if (state == RADIOLIB_ERR_NONE) {
-      lastMsg = str;
-      lastReceivedMillis = millis();
+      int separator = packet.indexOf(':');
+      uint8_t nonce[16];
+      uint8_t encrypted[65];
+      size_t nonceLength = 0;
+      size_t encryptedLength = 0;
+      bool validPacket = separator > 0
+          && decodeHex(packet.substring(0, separator), nonce, sizeof(nonce), nonceLength)
+          && nonceLength == sizeof(nonce)
+          && decodeHex(packet.substring(separator + 1), encrypted, sizeof(encrypted), encryptedLength)
+          && encryptedLength > 0;
 
-      if (gps.location.isValid()) {
-        Player player = handleReceivedData(str);
-        Serial.print("Received from: " + player.name + " | " + String(player.lat, 6) + ", " + String(player.lng, 6));
-        arrowDraw(gps.location.lat(), player.lat, gps.location.lng(), player.lng, false);
-      } else {
-        arrowDraw(0.0, 0.0, 0.0, 0.0, true);
+      if (validPacket) {
+        aesCtrCrypt(encrypted, encryptedLength, nonce);
+        encrypted[encryptedLength] = '\0';
+        String str = String((char*)encrypted);
+        lastMsg = str;
+        lastReceivedMillis = millis();
+
+        if (gps.location.isValid()) {
+          Player player = handleReceivedData(str);
+          Serial.print("Received from: " + player.name + " | " + String(player.lat, 6) + ", " + String(player.lng, 6));
+          arrowDraw(gps.location.lat(), player.lat, gps.location.lng(), player.lng, false);
+        } else {
+          arrowDraw(0.0, 0.0, 0.0, 0.0, true);
+        }
       }
     }
     radio.startReceive(); //go back to listening
@@ -423,9 +477,23 @@ void loop(){
   if (millis() - lastSend > sendInterval) {
     lastSend = millis();
     
+    uint8_t nonce[16];
+    generateNonce(nonce);
+
+
+    String payload = String(DEVICE_NAME) + ":" + String(gps.location.lat(), 6) + ":" + String(gps.location.lng(), 6);
+
+    uint8_t buffer[64];
+    size_t len = payload.length();
+    memcpy(buffer, payload.c_str(), len);
+    aesCtrCrypt(buffer, len, nonce);
+
+    String message = encodeHex(nonce, sizeof(nonce)) + ":" + encodeHex(buffer, len);
+    radio.transmit(message);
+
     //TEST
-    radio.transmit(String(DEVICE_NAME) + F(":") + String(gps.location.lat(), 7) + F(":") + String(gps.location.lng(), 7));
-    
+    //radio.transmit(String(DEVICE_NAME) + F(":") + String(gps.location.lat(), 7) + F(":") + String(gps.location.lng(), 7));
+
     receivedFlag = false; //clear flag to avoid reading our own message
     radio.startReceive(); //resume listening
   }
