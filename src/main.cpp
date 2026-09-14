@@ -7,20 +7,15 @@
 #include <Wire.h>
 #include <QMC5883L.h>
 #include "mbedtls/aes.h"
-
 #include "crypto.h"
-
-
-#define QMC5883P_ADDR 0x2C 
-
 #include "iostream"
 #include "sstream"
 #include "string"
 
+#define QMC5883P_ADDR 0x2C 
 
 #define COMPASS_SDA 17
 #define COMPASS_SCL 18
-
 
 #define LORA_NSS   8
 #define LORA_SCK   9
@@ -292,10 +287,6 @@ float qmcReadHeading() {
 }
 
 
-
-
-
-
 int16_t xMin = 32767, xMax = -32768;
 int16_t yMin = 32767, yMax = -32768;
 
@@ -381,10 +372,6 @@ void radar_circle(float heading){ //circle size of 4 right now
 
   northPointer(heading);
 }
-
-
-
-
 
 
 
