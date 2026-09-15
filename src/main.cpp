@@ -186,6 +186,8 @@ Player handleReceivedData(const String& str) {
   return player;
 }
 
+//C:\Projects\airsoft-tracker\include\secrets.h
+
 char hexDigit(uint8_t value) {
   return value < 10 ? ('0' + value) : ('A' + value - 10);
 }
