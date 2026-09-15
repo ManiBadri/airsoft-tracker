@@ -402,8 +402,6 @@ void loop(){
   if (millis() - lastSatDisplay > 1000) {
     lastSatDisplay = millis();
 
-    //Build the status string. Two pieces of info: satellite count,
-    //and whether we have a valid fix yet.
     int satCount = gps.satellites.value();
     bool hasFix = gps.location.isValid();
 
@@ -438,8 +436,10 @@ void loop(){
     uint8_t nonce[16];
     generateNonce(nonce);
 
-
     String payload = String(DEVICE_NAME) + ":" + String(gps.location.lat(), 6) + ":" + String(gps.location.lng(), 6);
+
+    Serial.print("Encrypting: ");
+    Serial.println(payload);
 
     uint8_t buffer[64];
     size_t len = payload.length();
@@ -447,10 +447,9 @@ void loop(){
     aesCtrCrypt(buffer, len, nonce);
 
     String message = encodeHex(nonce, sizeof(nonce)) + ":" + encodeHex(buffer, len);
-    radio.transmit(message);
-
-    //TEST
-    //radio.transmit(String(DEVICE_NAME) + F(":") + String(gps.location.lat(), 7) + F(":") + String(gps.location.lng(), 7));
+    Serial.print("Sending: ");
+    Serial.println(message);
+    radio.transmit(message);  
 
     receivedFlag = false; //clear flag to avoid reading our own message
     radio.startReceive(); //resume listening
@@ -466,9 +465,8 @@ void loop(){
 
     if (heading == -1) {
       Serial.println("Read failed, no data available");
+
     } else {
-      Serial.print("Heading: ");
-      Serial.println(heading);
 
       String headingText = "H: " + String(heading, 1);
       int16_t headingX = 0;
@@ -476,8 +474,7 @@ void loop(){
       uint16_t headingWidth = 0;
       uint16_t headingHeight = 0;
       tft.setTextSize(1);
-      tft.getTextBounds(headingText, 0, 70, &headingX, &headingY,
-                        &headingWidth, &headingHeight);
+      tft.getTextBounds(headingText, 0, 70, &headingX, &headingY, &headingWidth, &headingHeight);
       tft.fillRect(90, 70, 70, 10, ST77XX_BLACK);
       tft.setCursor(160 - headingWidth - 2, 70);
       tft.setTextColor(ST77XX_WHITE);

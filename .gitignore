@@ -12,7 +12,7 @@
 .vscode/ipch
 
 #SHHHH
-firmware/include/secrets.h
+include/secrets.h
 
 #OS
 .DS_Store
