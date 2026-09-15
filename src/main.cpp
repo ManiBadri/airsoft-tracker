@@ -268,25 +268,6 @@ void arrowDraw(double myLat, double otherLat, double myLng, double otherLng, boo
 }
 
 
-//Reads raw X/Y/Z and returns a heading in degrees
-float qmcReadHeading() {
-  Wire.beginTransmission(QMC5883P_ADDR);
-  Wire.write(0x01); //data output registers
-  Wire.endTransmission();
-
-  Wire.requestFrom(QMC5883P_ADDR, 6);
-  if (Wire.available() < 6) return -1; //not enough data, skip this read
-
-  int16_t x = Wire.read() | (Wire.read() << 8);
-  int16_t y = Wire.read() | (Wire.read() << 8);
-  int16_t z = Wire.read() | (Wire.read() << 8);
-
-  float heading = atan2((float)y, (float)x) * 180.0 / PI;
-  if (heading < 0) heading += 360;
-  return heading;
-}
-
-
 int16_t xMin = 32767, xMax = -32768;
 int16_t yMin = 32767, yMax = -32768;
 
@@ -335,14 +316,8 @@ float qmcReadHeadingCardinal(){
   float heading = atan2((float)y - y_offset, (float)x - x_offset) * 180.0 / PI;
   if (heading < 0) heading += 360;
 
-  //if (heading >= 315 || heading < 45)  return 'N';
-  //if (heading >= 45  && heading < 135) return 'E';
-  //if (heading >= 135 && heading < 225) return 'S';
-  //if (heading >= 225 && heading < 315) return 'W';
-
   return heading; 
 }
-
 
 int16_t radar_size = 6;
 int16_t arrowx = SCREEN_WIDTH / 2;
@@ -365,8 +340,7 @@ void northPointer(float heading) {
 
 void radar_circle(float heading){ //circle size of 4 right now
   // Remove the previous pointer before drawing it at its new angle.
-  tft.fillRect(arrowx - radar_size - 1, arrowy - radar_size - 1,
-               radar_size * 2 + 3, radar_size * 2 + 3, ST77XX_BLACK);
+  tft.fillRect(arrowx - radar_size - 1, arrowy - radar_size - 1, radar_size * 2 + 3, radar_size * 2 + 3, ST77XX_BLACK);
   tft.setTextColor(ST77XX_WHITE);
   tft.drawCircle(arrowx, arrowy, radar_size, ST77XX_WHITE);
 
@@ -374,17 +348,14 @@ void radar_circle(float heading){ //circle size of 4 right now
 }
 
 
-
 void loop(){
   
   down_time = (millis() - lastReceivedMillis) / 1000;
-
   
   tft.setCursor(5, 70);
   tft.fillRect(5, 70, 45, 10, ST77XX_BLACK);
   tft.setTextColor(ST77XX_RED);
   tft.println(down_time);
-
 
   if (receivedFlag) {
     tft.fillRect(5, 40, 150, 30, ST77XX_BLACK);
