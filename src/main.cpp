@@ -92,6 +92,10 @@ void qmcInit() {
 
 
 void setup() {
+  //for random to be actually random 
+  randomSeed(esp_random());
+
+
   Serial.begin(115200);
   delay(1000);
   
@@ -186,7 +190,7 @@ Player handleReceivedData(const String& str) {
   return player;
 }
 
-//C:\Projects\airsoft-tracker\include\secrets.h
+
 
 char hexDigit(uint8_t value) {
   return value < 10 ? ('0' + value) : ('A' + value - 10);
