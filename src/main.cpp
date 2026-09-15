@@ -94,8 +94,7 @@ void qmcInit() {
 void setup() {
   //for random to be actually random 
   randomSeed(esp_random());
-
-
+  
   Serial.begin(115200);
   delay(1000);
   
