@@ -108,6 +108,8 @@ void setup() {
 
   gpsSerial.begin(115200, SERIAL_8N1, GNSS_RX, GNSS_TX);
 
+
+
   Wire.begin(COMPASS_SDA, COMPASS_SCL);
   qmcInit();
 
@@ -151,6 +153,28 @@ void setup() {
   tft.setCursor(5, 20);
   tft.setTextColor(ST77XX_GREEN);
   tft.println("Radio OK");
+
+  // Run once in setup(), after your Wire/crypto init:
+  uint8_t testNonce[16];
+  generateNonce(testNonce);
+  uint8_t testBuf[32];
+  String testPayload = "TestNode:43.123456:-79.123456";
+  uint8_t nonceForEncrypt[16];
+  uint8_t nonceForDecrypt[16];
+
+  memcpy(nonceForEncrypt, testNonce, 16);
+  memcpy(nonceForDecrypt, testNonce, 16);
+
+
+  memcpy(testBuf, testPayload.c_str(), testPayload.length());
+  
+  aesCtrCrypt(testBuf, testPayload.length(), nonceForEncrypt);
+  aesCtrCrypt(testBuf, testPayload.length(), nonceForDecrypt);
+  
+  testBuf[testPayload.length()] = '\0';
+  Serial.print("Round-trip result: ");
+  Serial.println(String((char*)testBuf));
+
 }
 
 //other player infos
@@ -225,6 +249,15 @@ bool decodeHex(const String& encoded, uint8_t* data, size_t capacity, size_t& le
     data[i] = (high << 4) | low;
   }
   return true;
+}
+
+bool isValidPayload(const String& payload) {
+  int firstColon = payload.indexOf(':');
+  int secondColon = payload.indexOf(':', firstColon + 1);
+  return firstColon > 0
+      && secondColon > firstColon + 1
+      && secondColon < static_cast<int>(payload.length()) - 1
+      && payload.indexOf(':', secondColon + 1) < 0;
 }
 
 void arrowDraw(double myLat, double otherLat, double myLng, double otherLng, bool error) {
@@ -354,7 +387,7 @@ void radar_circle(float heading){ //circle size of 4 right now
 
 
 void loop(){
-  
+
   down_time = (millis() - lastReceivedMillis) / 1000;
   
   tft.setCursor(5, 70);
@@ -376,22 +409,26 @@ void loop(){
       bool validPacket = separator > 0
           && decodeHex(packet.substring(0, separator), nonce, sizeof(nonce), nonceLength)
           && nonceLength == sizeof(nonce)
-          && decodeHex(packet.substring(separator + 1), encrypted, sizeof(encrypted), encryptedLength)
+          && decodeHex(packet.substring(separator + 1), encrypted, sizeof(encrypted) - 1, encryptedLength)
           && encryptedLength > 0;
 
       if (validPacket) {
         aesCtrCrypt(encrypted, encryptedLength, nonce);
         encrypted[encryptedLength] = '\0';
         String str = String((char*)encrypted);
-        lastMsg = str;
-        lastReceivedMillis = millis();
-
-        if (gps.location.isValid()) {
-          Player player = handleReceivedData(str);
-          Serial.print("Received from: " + player.name + " | " + String(player.lat, 6) + ", " + String(player.lng, 6));
-          arrowDraw(gps.location.lat(), player.lat, gps.location.lng(), player.lng, false);
+        if (!isValidPayload(str)) {
+          Serial.println("Decrypt failed; check that both devices use the same teamKey");
         } else {
-          arrowDraw(0.0, 0.0, 0.0, 0.0, true);
+          lastMsg = str;
+          lastReceivedMillis = millis();
+
+          if (gps.location.isValid()) {
+            Player player = handleReceivedData(str);
+            Serial.print("Received from: " + player.name + " | " + String(player.lat, 6) + ", " + String(player.lng, 6));
+            arrowDraw(gps.location.lat(), player.lat, gps.location.lng(), player.lng, false);
+          } else {
+            arrowDraw(0.0, 0.0, 0.0, 0.0, true);
+          }
         }
       }
     }
@@ -436,22 +473,25 @@ void loop(){
 
   //Periodically transmit
   if (millis() - lastSend > sendInterval) {
+
     lastSend = millis();
-    
+
+
     uint8_t nonce[16];
     generateNonce(nonce);
-
+      
+    uint8_t nonceForTransmit[16];
+    memcpy(nonceForTransmit, nonce, 16); // save the ORIGINAL value before it gets mutated
+      
     String payload = String(DEVICE_NAME) + ":" + String(gps.location.lat(), 6) + ":" + String(gps.location.lng(), 6);
-
-    Serial.print("Encrypting: ");
-    Serial.println(payload);
-
+      
     uint8_t buffer[64];
     size_t len = payload.length();
     memcpy(buffer, payload.c_str(), len);
-    aesCtrCrypt(buffer, len, nonce);
+    aesCtrCrypt(buffer, len, nonce); // mutates `nonce`, but that's fine now — we don't need it anymore
+      
+    String message = encodeHex(nonceForTransmit, sizeof(nonceForTransmit)) + ":" + encodeHex(buffer, len); // send the SAVED original
 
-    String message = encodeHex(nonce, sizeof(nonce)) + ":" + encodeHex(buffer, len);
     Serial.print("Sending: ");
     Serial.println(message);
     radio.transmit(message);  

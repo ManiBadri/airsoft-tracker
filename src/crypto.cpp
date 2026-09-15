@@ -1,6 +1,8 @@
 #include "crypto.h"
 #include "mbedtls/aes.h"
-#include "secrets.h"   //pulls in teamKey — this is the only file that needs it directly
+#include "secrets.h"   //only file that should access directly 
+#include "Arduino.h"
+
 
 void aesCtrCrypt(uint8_t *data, size_t len, uint8_t nonceCounter[16]) {
   mbedtls_aes_context aes;
