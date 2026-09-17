@@ -49,11 +49,9 @@ TinyGPSPlus gps;
 //compass object
 QMC5883L compass;
 
-
 //screen meassurements
 int SCREEN_WIDTH = 160;
 int SCREEN_HEIGHT = 80;
-
 
 //each board name
 #define DEVICE_NAME "NodeB"
@@ -214,7 +212,6 @@ Player handleReceivedData(const String& str) {
 }
 
 
-
 char hexDigit(uint8_t value) {
   return value < 10 ? ('0' + value) : ('A' + value - 10);
 }
@@ -305,7 +302,6 @@ void arrowDraw(double myLat, double otherLat, double myLng, double otherLng, boo
   }
 }
 
-
 int16_t xMin = 32767, xMax = -32768;
 int16_t yMin = 32767, yMax = -32768;
 
@@ -375,7 +371,6 @@ void northPointer(float heading) {
 
 }
 
-
 void radar_circle(float heading){ //circle size of 4 right now
   // Remove the previous pointer before drawing it at its new angle.
   tft.fillRect(arrowx - radar_size - 1, arrowy - radar_size - 1, radar_size * 2 + 3, radar_size * 2 + 3, ST77XX_BLACK);
@@ -384,7 +379,6 @@ void radar_circle(float heading){ //circle size of 4 right now
 
   northPointer(heading);
 }
-
 
 void loop(){
 
@@ -500,7 +494,6 @@ void loop(){
     radio.startReceive(); //resume listening
   }
 
-
   static unsigned long lastCompassCheck = 0;
   if (millis() - lastCompassCheck > 200) { 
     lastCompassCheck = millis();
@@ -527,8 +520,6 @@ void loop(){
     } 
 
   }
-  
-
 
   //Display Update
   //tft.fillRect(5, 40, 150, 30, ST77XX_BLACK);
