@@ -5,12 +5,16 @@
 #include <RadioLib.h>
 #include "TinyGPSPlus.h"
 #include <Wire.h>
-#include <QMC5883L.h>
+//#include <QMC5883L.h>
 #include "mbedtls/aes.h"
 #include "crypto.h"
 #include "iostream"
 #include "sstream"
 #include "string"
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
+
 
 #define QMC5883P_ADDR 0x2C 
 
@@ -47,14 +51,14 @@ HardwareSerial gpsSerial(1);
 TinyGPSPlus gps;
 
 //compass object
-QMC5883L compass;
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28); //55 = arbitrary sensor ID, 0x28 = confirmed address
 
 //screen meassurements
 int SCREEN_WIDTH = 160;
 int SCREEN_HEIGHT = 80;
 
 //each board name
-#define DEVICE_NAME "NodeB"
+#define DEVICE_NAME "NodeA"
 
 volatile bool receivedFlag = false;
 void onReceive() { receivedFlag = true; }
@@ -66,7 +70,7 @@ const unsigned long sendInterval = 5000; //time between each transmission (in mi
 String lastMsg = "waiting...";
 const unsigned long calibration_time = 30000;
 
-bool calibrateCompass();
+
 
 
 
@@ -106,20 +110,30 @@ void setup() {
 
   gpsSerial.begin(115200, SERIAL_8N1, GNSS_RX, GNSS_TX);
 
-
-
   Wire.begin(COMPASS_SDA, COMPASS_SCL);
-  qmcInit();
+  Serial.println("I2C Scanner starting...");
 
-  Serial.println("QMC5883P initialized");
 
-  Serial.println("Calibrating compass for 30 seconds");
+  //Wire.begin(COMPASS_SDA, COMPASS_SCL);
+
+  //Wire.begin(17, 18);
+//
+  //Wire.setClock(100000);
+  //bno.begin();
+//
+  //if (!bno.begin()) {
+  //  Serial.println("BNO055 not detected");
+  //} else {
+  //  Serial.println("BNO055 OK");
+  //}
+
+
   unsigned long calibrationStart = millis();
-  while (millis() - calibrationStart < calibration_time) {
-    calibrateCompass();
-    delay(100);
-  }
-  Serial.println("Compass calibration complete");
+  //while (millis() - calibrationStart < calibration_time) {
+  //  calibrateCompass();
+  //  delay(100);
+  //}
+
 
 
   Serial.println("Initializing TFT");
@@ -172,6 +186,9 @@ void setup() {
   testBuf[testPayload.length()] = '\0';
   Serial.print("Round-trip result: ");
   Serial.println(String((char*)testBuf));
+
+
+
 
 }
 
@@ -307,28 +324,6 @@ int16_t yMin = 32767, yMax = -32768;
 
 int16_t x_offset = 0, y_offset = 0;
 
-bool calibrateCompass(){
-  Wire.beginTransmission(QMC5883P_ADDR);
-  Wire.write(0x01);
-  Wire.endTransmission();
-  Wire.requestFrom(QMC5883P_ADDR, 6);
-  if (Wire.available() < 6) return false;
-
-  int16_t x = Wire.read() | (Wire.read() << 8);
-  int16_t y = Wire.read() | (Wire.read() << 8);
-  Wire.read(); Wire.read(); //discard Z
-
-  if (x < xMin) xMin = x;
-  if (x > xMax) xMax = x;
-  if (y < yMin) yMin = y;
-  if (y > yMax) yMax = y;
-
-  Serial.print("xMin: "); Serial.print(xMin);
-  Serial.print(" xMax: "); Serial.print(xMax);
-  Serial.print(" yMin: "); Serial.print(yMin);
-  Serial.print(" yMax: "); Serial.println(yMax);
-  return true;
-}
 
 //just NSEW on X axis
 float qmcReadHeadingCardinal(){
@@ -345,6 +340,7 @@ float qmcReadHeadingCardinal(){
 
   x_offset = (xMax + xMin) / 2;
   y_offset = (yMax + yMin) / 2;
+
 
 
   float heading = atan2((float)y - y_offset, (float)x - x_offset) * 180.0 / PI;
@@ -369,6 +365,7 @@ void northPointer(float heading) {
   //start x and y, end x and y, color
   tft.drawLine(arrowx, arrowy, arrowx + x3, arrowy - y3, ST77XX_WHITE);
 
+
 }
 
 void radar_circle(float heading){ //circle size of 4 right now
@@ -381,6 +378,26 @@ void radar_circle(float heading){ //circle size of 4 right now
 }
 
 void loop(){
+
+  int found = 0;
+  for (byte address = 1; address < 127; address++) {
+    Wire.beginTransmission(address);
+    byte error = Wire.endTransmission();
+
+    if (error == 0) {
+      Serial.print("Device found at address 0x");
+      if (address < 16) Serial.print("0");
+      Serial.println(address, HEX);
+      found++;
+    }
+  }
+  if (found == 0) {
+    Serial.println("No I2C devices found.");
+  }
+  delay(3000);
+
+
+  
 
   down_time = (millis() - lastReceivedMillis) / 1000;
   
@@ -493,11 +510,20 @@ void loop(){
     receivedFlag = false; //clear flag to avoid reading our own message
     radio.startReceive(); //resume listening
   }
-
+  
   static unsigned long lastCompassCheck = 0;
   if (millis() - lastCompassCheck > 200) { 
     lastCompassCheck = millis();
+
+    //new sensor
+    //int8_t temp = bno.getTemp();
+    //Serial.println(temp);
+
+
+    /*
     float heading = qmcReadHeadingCardinal();
+
+
     
     radar_circle(heading);
 
@@ -518,7 +544,7 @@ void loop(){
       tft.setTextColor(ST77XX_WHITE);
       tft.print(headingText);
     } 
-
+    */
   }
 
   //Display Update
