@@ -1,0 +1,72 @@
+Airsoft Team Tracker
+A wearable GPS + LoRa tracker that shows direction and distance of teammates without cell service or internet requirment. Built for airsoft but can have other applications.
+
+Status: rough working prototype
+
+
+Each player wears a node. Every node:
+
+    Gets its position from a GNSS receiver
+    Broadcasts that position to teammates over LoRa (peer-to-peer, adding mesh in later iteration)
+    Receives teammates' positions and calculates distance and bearing
+    Shows information on dispay
+
+packets are encrypted using AES-128-CTR so different teams and squads do not read each others location.
+
+as of right now you can pair watches and be in same team by creating a secrets.h in the include folder and adding a  16-byte AES-128 key shared by all devices on your team.
+    #pragma once
+   // 16-byte AES-128 key shared by all devices on your team
+   static const uint8_t TEAM_KEY[16] = { /* your 16 bytes here */ };
+
+Hardware
+    Heltec Wireless Tracker V1.1
+    915 MHz LoRa antennas
+    Active ceramic GPS patch antenna
+    3.7V 320mAh LiPo
+    GY-BNO055 9-axis IMU
+
+
+Software
+    C++ on Arduino framework
+    Built with PlatformIO in VS Code
+    LoRa radio, GNSS parsing, display driver, and AES-128-CTR encryption
+
+
+Challanges so far:
+    Heading:
+        deciding how the device should decide heading with multiple options and all having pros and cons 
+            1. Deciding a certian side of the watch is forward
+            2. North is always forward
+            3. Forward is decided by tracking movement using GPS locations
+    Compass module:
+        got a module without built in accelerometer and gyroscope making is too innacurate for use
+    Pairing:
+        easier way to pair the devices with teammates on feild instead of accessing the code 
+
+Working:
+    Two-board LoRa transmit and receive
+    GPS fix and position parsing
+    Display output
+    Direction calculation between nodes
+    AES-128-CTR encrypt/decrypt round trip
+
+
+In progress 
+    BNO055 IMU integration for orientation (had to be redone)
+    Status button to share status with teammates
+    Deep-sleep soft-off with button wake (prototype); soft-latch power circuit for the final build
+    Water proof Enclosure and wrist mounting 
+    Mesh system to increase range 
+    Possible compatiblity addition to ITAK/ATAK
+    
+
+This directory is intended for PlatformIO Test Runner and project tests.
+
+Unit Testing is a software testing method by which individual units of
+source code, sets of one or more MCU program modules together with associated
+control data, usage procedures, and operating procedures, are tested to
+determine whether they are fit for use. Unit testing finds problems early
+in the development cycle.
+
+More information about PlatformIO Unit Testing:
+- https://docs.platformio.org/en/latest/advanced/unit-testing/index.html
