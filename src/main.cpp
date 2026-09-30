@@ -1,3 +1,55 @@
+
+
+//test for BNO
+/*
+#include <Arduino.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+
+#define SDA_PIN 17
+#define SCL_PIN 18
+
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
+
+void setup() {
+    Serial.begin(115200);
+    delay(5000);
+
+    Serial.println("Starting I2C...");
+
+    Wire.begin(SDA_PIN, SCL_PIN);
+
+    delay(100);
+
+    Serial.println("Scanning...");
+
+    for (uint8_t address = 1; address < 127; address++) {
+        Wire.beginTransmission(address);
+        uint8_t error = Wire.endTransmission();
+
+        if (error == 0) {
+            Serial.print("FOUND: 0x");
+            Serial.println(address, HEX);
+        }
+    }
+
+    Serial.println("Starting BNO055...");
+
+    if (!bno.begin()) {
+        Serial.println("BNO055 NOT FOUND!");
+    } else {
+        Serial.println("BNO055 FOUND!");
+    }
+}
+
+void loop() {
+}
+*/
+
+
+
+
 #include <Arduino.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
@@ -16,7 +68,7 @@
 #include <utility/imumaths.h>
 
 
-#define QMC5883P_ADDR 0x2C 
+//#define QMC5883P_ADDR 0x2C 
 
 #define COMPASS_SDA 17
 #define COMPASS_SCL 18
@@ -51,7 +103,7 @@ HardwareSerial gpsSerial(1);
 TinyGPSPlus gps;
 
 //compass object
-Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28); //55 = arbitrary sensor ID, 0x28 = confirmed address
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x29); //55 = arbitrary sensor ID, 0x28 = confirmed address
 
 //screen meassurements
 int SCREEN_WIDTH = 160;
@@ -70,26 +122,7 @@ const unsigned long sendInterval = 5000; //time between each transmission (in mi
 String lastMsg = "waiting...";
 const unsigned long calibration_time = 30000;
 
-
-
-
-
-void qmcInit() {
-  Wire.beginTransmission(QMC5883P_ADDR);
-  Wire.write(0x0B);  // config register
-  Wire.write(0x08);  // set mode continuous
-  Wire.endTransmission();
-
-  Wire.beginTransmission(QMC5883P_ADDR);
-  Wire.write(0x29);
-  Wire.write(0x06);
-  Wire.endTransmission();
-
-  Wire.beginTransmission(QMC5883P_ADDR);
-  Wire.write(0x0A);
-  Wire.write(0xC3); //continuous mode, ODR = 10Hz
-  Wire.endTransmission();
-}
+bool compass_found = false;
 
 
 
@@ -111,21 +144,14 @@ void setup() {
   gpsSerial.begin(115200, SERIAL_8N1, GNSS_RX, GNSS_TX);
 
   Wire.begin(COMPASS_SDA, COMPASS_SCL);
+  delay(1000);
+  Serial.println("Initializing BNO055...");
+
+  
+
+  delay(1000);
+
   Serial.println("I2C Scanner starting...");
-
-
-  //Wire.begin(COMPASS_SDA, COMPASS_SCL);
-
-  //Wire.begin(17, 18);
-//
-  //Wire.setClock(100000);
-  //bno.begin();
-//
-  //if (!bno.begin()) {
-  //  Serial.println("BNO055 not detected");
-  //} else {
-  //  Serial.println("BNO055 OK");
-  //}
 
 
   unsigned long calibrationStart = millis();
@@ -188,8 +214,7 @@ void setup() {
   Serial.println(String((char*)testBuf));
 
 
-
-
+  
 }
 
 //other player infos
@@ -325,30 +350,6 @@ int16_t yMin = 32767, yMax = -32768;
 int16_t x_offset = 0, y_offset = 0;
 
 
-//just NSEW on X axis
-float qmcReadHeadingCardinal(){
-  Wire.beginTransmission(QMC5883P_ADDR);
-  Wire.write(0x01);
-  Wire.endTransmission();
-
-  Wire.requestFrom(QMC5883P_ADDR, 6);
-  if (Wire.available() < 6) return -1;
-
-  int16_t x = Wire.read() | (Wire.read() << 8);
-  int16_t y = Wire.read() | (Wire.read() << 8);
-  int16_t z = Wire.read() | (Wire.read() << 8);
-
-  x_offset = (xMax + xMin) / 2;
-  y_offset = (yMax + yMin) / 2;
-
-
-
-  float heading = atan2((float)y - y_offset, (float)x - x_offset) * 180.0 / PI;
-  if (heading < 0) heading += 360;
-
-  return heading; 
-}
-
 int16_t radar_size = 6;
 int16_t arrowx = SCREEN_WIDTH / 2;
 int16_t arrowy = SCREEN_HEIGHT - radar_size - 1;
@@ -377,27 +378,34 @@ void radar_circle(float heading){ //circle size of 4 right now
   northPointer(heading);
 }
 
+
+void find_compass(){ 
+  if (!bno.begin()) {
+        Serial.println("BNO055 NOT FOUND!");
+        compass_found = false;
+    } else {
+      compass_found = true;
+        Serial.println("BNO055 FOUND!");
+    }
+}
+
+
 void loop(){
 
-  int found = 0;
-  for (byte address = 1; address < 127; address++) {
-    Wire.beginTransmission(address);
-    byte error = Wire.endTransmission();
+  if(!compass_found){
+    find_compass();
+  }
 
+  for (uint8_t address = 1; address < 127; address++) {
+    Wire.beginTransmission(address);
+    uint8_t error = Wire.endTransmission();
     if (error == 0) {
-      Serial.print("Device found at address 0x");
-      if (address < 16) Serial.print("0");
-      Serial.println(address, HEX);
-      found++;
+        Serial.print("FOUND: 0x");
+        Serial.println(address, HEX);
     }
   }
-  if (found == 0) {
-    Serial.println("No I2C devices found.");
-  }
+
   delay(3000);
-
-
-  
 
   down_time = (millis() - lastReceivedMillis) / 1000;
   
@@ -479,7 +487,6 @@ void loop(){
 
     tft.setTextColor(hasFix ? ST77XX_GREEN : ST77XX_RED);
     tft.println(satStr);
-
   }
 
   //Periodically transmit
@@ -543,9 +550,12 @@ void loop(){
       tft.setCursor(160 - headingWidth - 2, 70);
       tft.setTextColor(ST77XX_WHITE);
       tft.print(headingText);
-    } 
+    }
     */
+   
+   
   }
+
 
   //Display Update
   //tft.fillRect(5, 40, 150, 30, ST77XX_BLACK);
@@ -556,4 +566,4 @@ void loop(){
   tft.setTextColor(ST77XX_RED);
   tft.println(lastMsg);
 }
-
+  
