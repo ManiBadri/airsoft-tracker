@@ -103,14 +103,14 @@ HardwareSerial gpsSerial(1);
 TinyGPSPlus gps;
 
 //compass object
-Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x29); //55 = arbitrary sensor ID, 0x28 = confirmed address
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x29); //actually 29
 
 //screen meassurements
 int SCREEN_WIDTH = 160;
 int SCREEN_HEIGHT = 80;
 
 //each board name
-#define DEVICE_NAME "NodeA"
+#define DEVICE_NAME "NodeB"
 
 volatile bool receivedFlag = false;
 void onReceive() { receivedFlag = true; }
@@ -212,7 +212,6 @@ void setup() {
   testBuf[testPayload.length()] = '\0';
   Serial.print("Round-trip result: ");
   Serial.println(String((char*)testBuf));
-
 
   
 }
@@ -361,8 +360,7 @@ void northPointer(float heading) {
   float angle = heading * PI / 180.0;
   int16_t x3 = radar_size * sin(angle);
   int16_t y3 = radar_size * cos(angle);
-
-
+  
   //start x and y, end x and y, color
   tft.drawLine(arrowx, arrowy, arrowx + x3, arrowy - y3, ST77XX_WHITE);
 
@@ -386,9 +384,48 @@ void find_compass(){
     } else {
       compass_found = true;
         Serial.println("BNO055 FOUND!");
+        Serial.println("Calibrate: hold still for gyro, move through several orientations for accel, then slowly rotate/figure-eight for magnetometer.");
     }
 }
+bool cal_compass = false;
 
+bool cal_comp(){
+  uint8_t system, gyro, accel, mag;
+  bno.getCalibration(&system, &gyro, &accel, &mag);
+
+  static uint8_t previousSystem = 255;
+  static uint8_t previousGyro = 255;
+  static uint8_t previousAccel = 255;
+  static uint8_t previousMag = 255;
+
+  if (system != previousSystem || gyro != previousGyro ||
+      accel != previousAccel || mag != previousMag) {
+    Serial.printf("BNO055 calibration S:%u G:%u A:%u M:%u (0-3)\n", system, gyro, accel, mag);
+    previousSystem = system;
+    previousGyro = gyro;
+    previousAccel = accel;
+    previousMag = mag;
+  }
+
+  if (system == 3 && gyro == 3 && accel == 3 && mag == 3) {
+    Serial.println("BNO055 calibration complete.");
+    return true;
+  }
+
+  return false;
+}
+
+
+float get_heading(){
+  sensors_event_t event; 
+  bno.getEvent(&event);
+  
+  float heading = event.orientation.x;
+  
+  Serial.print("Heading: ");
+  Serial.println(heading);
+  return heading;
+}
 
 void loop(){
 
@@ -396,14 +433,12 @@ void loop(){
     find_compass();
   }
 
-  for (uint8_t address = 1; address < 127; address++) {
-    Wire.beginTransmission(address);
-    uint8_t error = Wire.endTransmission();
-    if (error == 0) {
-        Serial.print("FOUND: 0x");
-        Serial.println(address, HEX);
+  if(compass_found){
+    if (!cal_compass) {
+      cal_compass = cal_comp();
     }
   }
+
 
   delay(3000);
 
@@ -528,7 +563,7 @@ void loop(){
 
 
     /*
-    float heading = qmcReadHeadingCardinal();
+    float heading = get_heading();
 
 
     
