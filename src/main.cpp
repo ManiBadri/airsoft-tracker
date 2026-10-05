@@ -104,10 +104,7 @@ void setup() {
 
 
   unsigned long calibrationStart = millis();
-  //while (millis() - calibrationStart < calibration_time) {
-  //  calibrateCompass();
-  //  delay(100);
-  //}
+
 
 
 
@@ -481,7 +478,7 @@ void loop(){
 
     uint8_t nonce[16];
     generateNonce(nonce);
-      
+
     uint8_t nonceForTransmit[16];
     memcpy(nonceForTransmit, nonce, 16); //save the ORIGINAL value before it gets mutated
       
@@ -502,12 +499,18 @@ void loop(){
     radio.startReceive(); //resume listening
   }
   
-  static unsigned long lastCompassCheck = 0;
-  if (millis() - lastCompassCheck > 200) { 
-    lastCompassCheck = millis();
 
+  if(cal_compass == true){
+    static unsigned long lastCompassCheck = 0;
+    if (millis() - lastCompassCheck > 200) { 
+      lastCompassCheck = millis();
 
-   
+      if (compass_found) {
+        float heading = get_heading();
+        radar_circle(heading);
+      }
+    
+    }
   }
 
 
