@@ -1,55 +1,4 @@
 
-
-//test for BNO
-/*
-#include <Arduino.h>
-#include <Wire.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BNO055.h>
-
-#define SDA_PIN 17
-#define SCL_PIN 18
-
-Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
-
-void setup() {
-    Serial.begin(115200);
-    delay(5000);
-
-    Serial.println("Starting I2C...");
-
-    Wire.begin(SDA_PIN, SCL_PIN);
-
-    delay(100);
-
-    Serial.println("Scanning...");
-
-    for (uint8_t address = 1; address < 127; address++) {
-        Wire.beginTransmission(address);
-        uint8_t error = Wire.endTransmission();
-
-        if (error == 0) {
-            Serial.print("FOUND: 0x");
-            Serial.println(address, HEX);
-        }
-    }
-
-    Serial.println("Starting BNO055...");
-
-    if (!bno.begin()) {
-        Serial.println("BNO055 NOT FOUND!");
-    } else {
-        Serial.println("BNO055 FOUND!");
-    }
-}
-
-void loop() {
-}
-*/
-
-
-
-
 #include <Arduino.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
@@ -534,14 +483,14 @@ void loop(){
     generateNonce(nonce);
       
     uint8_t nonceForTransmit[16];
-    memcpy(nonceForTransmit, nonce, 16); // save the ORIGINAL value before it gets mutated
+    memcpy(nonceForTransmit, nonce, 16); //save the ORIGINAL value before it gets mutated
       
     String payload = String(DEVICE_NAME) + ":" + String(gps.location.lat(), 6) + ":" + String(gps.location.lng(), 6);
       
     uint8_t buffer[64];
     size_t len = payload.length();
     memcpy(buffer, payload.c_str(), len);
-    aesCtrCrypt(buffer, len, nonce); // mutates `nonce`, but that's fine now — we don't need it anymore
+    aesCtrCrypt(buffer, len, nonce); //mutates `nonce`, but that's fine now — we don't need it anymore
       
     String message = encodeHex(nonceForTransmit, sizeof(nonceForTransmit)) + ":" + encodeHex(buffer, len); // send the SAVED original
 
@@ -557,37 +506,7 @@ void loop(){
   if (millis() - lastCompassCheck > 200) { 
     lastCompassCheck = millis();
 
-    //new sensor
-    //int8_t temp = bno.getTemp();
-    //Serial.println(temp);
 
-
-    /*
-    float heading = get_heading();
-
-
-    
-    radar_circle(heading);
-
-    if (heading == -1) {
-      Serial.println("Read failed, no data available");
-
-    } else {
-
-      String headingText = "H: " + String(heading, 1);
-      int16_t headingX = 0;
-      int16_t headingY = 0;
-      uint16_t headingWidth = 0;
-      uint16_t headingHeight = 0;
-      tft.setTextSize(1);
-      tft.getTextBounds(headingText, 0, 70, &headingX, &headingY, &headingWidth, &headingHeight);
-      tft.fillRect(90, 70, 70, 10, ST77XX_BLACK);
-      tft.setCursor(160 - headingWidth - 2, 70);
-      tft.setTextColor(ST77XX_WHITE);
-      tft.print(headingText);
-    }
-    */
-   
    
   }
 
