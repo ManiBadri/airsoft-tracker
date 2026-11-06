@@ -59,7 +59,7 @@ int SCREEN_WIDTH = 160;
 int SCREEN_HEIGHT = 80;
 
 //each board name
-#define DEVICE_NAME "NodeB"
+#define DEVICE_NAME "NodeA"
 
 volatile bool receivedFlag = false;
 void onReceive() { receivedFlag = true; }
@@ -104,8 +104,6 @@ void setup() {
 
 
   unsigned long calibrationStart = millis();
-
-
 
 
   Serial.println("Initializing TFT");
